@@ -300,6 +300,9 @@ $(CHD_OBJ): $(CHD_SRC) $(shell find src/native/third_party/libchdr -name '*.[ch]
 	$(CC) -std=gnu11 -O2 -fPIC -fvisibility=hidden -w -c $< -o $@
 B3ASSET_OBJ += $(CHD_OBJ)
 B3ASSET_RT_OBJ += $(CHD_OBJ)
+# macintel1: test_native_platform's rule (above) names $(CHD_OBJ) before it is defined, so make read that prerequisite
+# as empty and a parallel build linked the test before compiling the unit ("no such file: chd_libchdr.o")
+$(BUILD)/test_native_platform: $(CHD_OBJ)
 GAME ?= $(CURDIR)/data/game
 # the 100 % save card the save tests read (optional: they skip without it)
 SAVES ?=
