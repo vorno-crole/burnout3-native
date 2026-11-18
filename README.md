@@ -167,7 +167,7 @@ The generated game code is committed, so the repository builds on its own. Full 
 
 ```sh
 make && build/b3launcher                       # Linux: the game and the launcher (GCC 13+, SDL 3, Vulkan)
-tools/mac/native.sh <your disc folder>         # macOS, Apple Silicon (docs/mac.md)
+tools/mac/native.sh <your disc folder>         # macOS, Apple Silicon or Intel (docs/mac.md)
 RENDER=1 tools/native/build_win.sh             # Windows, cross-built from WSL with a pinned MSYS2 toolchain
 make test                                      # the unit tests
 make modtool                                   # b3modtool, the mod kit's tool
@@ -180,14 +180,15 @@ make modtool                                   # b3modtool, the mod kit's tool
 
 | | Windows | Linux | macOS |
 |:--|:--|:--|:--|
-| **System** | Windows 10 / 11, 64-bit | x86-64, glibc 2.35+ (Ubuntu 22.04+, Debian 12, Fedora 36+, SteamOS 3 ...) | Apple Silicon (M1 or later) |
+| **System** | Windows 10 / 11, 64-bit | x86-64, glibc 2.35+ (Ubuntu 22.04+, Debian 12, Fedora 36+, SteamOS 3 ...) | Apple Silicon (M1 or later); Intel (x86-64) from source, macOS 15+ |
 | **Graphics** | A GPU and driver with Vulkan 1.0 or newer | A driver with Vulkan 1.0 or newer; X11 or Wayland | Metal (built in) |
 | **Package** | Zip with the launcher | Tarball with its own SDL 3 | `.dmg` with the launcher app |
-| **Tested** | ✅ Played on a high-end desktop; the package passes its smoke test | ✅ The package passes its smoke test and was played on one desktop; other distributions and the Steam Deck: untested | 🚧 Played on an M1 when built from source; the `.dmg` is built by CI, and a build of it has been installed and run on a real Mac |
+| **Tested** | ✅ Played on a high-end desktop; the package passes its smoke test | ✅ The package passes its smoke test and was played on one desktop; other distributions and the Steam Deck: untested | 🚧 Played on an M1 when built from source; the `.dmg` is built by CI, and a build of it has been installed and run on a real Mac. Intel: played on one Intel Mac when built from source ([docs/mac.md §11](docs/mac.md#11-intel-macs-x86-64-status-macintel1-2026-11-18)) |
 
-Intel Macs, Windows on ARM and Linux on ARM are not supported. The exact minimum CPU, memory and graphics card are
-**not measured**: a slow PC can fall behind real time (see [known issues](docs/known-issues.md)), and the **Low**
-preset or safe mode helps. The download is small (about 23 MB for the test builds); your disc stays where it is.
+Windows on ARM and Linux on ARM are not supported. Intel Macs build from source, with no download yet. The exact
+minimum CPU, memory and graphics card are **not measured**: a slow PC can fall behind real time (see
+[known issues](docs/known-issues.md)), and the **Low** preset or safe mode helps. The download is small (about 23 MB
+for the test builds); your disc stays where it is.
 
 ## Controls
 

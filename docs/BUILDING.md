@@ -44,7 +44,8 @@ tools/release/package_win.sh              # the tester zip into <WIN>/release (a
 
 ## macOS
 
-`make render` / `make play` pick up Homebrew's `sdl3` through pkg-config (`docs/mac.md`).
+`make render` / `make play` pick up Homebrew's `sdl3` through pkg-config (`docs/mac.md`). Apple Silicon and Intel Macs
+build the same way; the Intel status is `docs/mac.md` section 11.
 
 ## Rules
 

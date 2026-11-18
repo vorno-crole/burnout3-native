@@ -1,5 +1,7 @@
 # The Mac (Apple Silicon)
 
+Intel Macs (x86-64): the game builds from source and plays at full speed, see section 11. There is no Intel download yet.
+
 ## Playing: the Mac app (download)
 
 The ready-made Mac download is a disk image, `burnout3-native-<version>-macos-arm64.dmg`, with **Burnout 3
@@ -274,7 +276,8 @@ report if the game stops.
 
 ## 10. Building the Mac app yourself: tools/release/package_mac.sh
 
-`tools/release/package_mac.sh` builds the download above from the source, on an Apple Silicon Mac with the one-time
+`tools/release/package_mac.sh` builds the download above from the source, on an Apple Silicon Mac (on an Intel Mac:
+the Intel package, `-macos-x86_64.dmg`, section 11) with the one-time
 setup of section 1 (the Xcode command line tools; `brew install sdl3 pkg-config make`):
 
 ```
@@ -296,7 +299,7 @@ SMOKE=1 B3_GAME_DIR=<disc folder> SAVES=<card folder> tools/release/package_mac.
   issues and the licenses, then an ad-hoc signature (`codesign -s -`: Apple Silicon runs only signed code) and a
   compressed disk image (`hdiutil`, UDZO) with the app beside a link to `/Applications`. There is no notarization
   step.
-- **The checks it always makes:** every program arm64; `otool -L` shows only macOS's own libraries and the app's own
+- **The checks it always makes:** every program built for the Mac's CPU (arm64; x86_64 on an Intel Mac); `otool -L` shows only macOS's own libraries and the app's own
   (no Homebrew path: the app runs on a Mac without Homebrew); no absolute rpath; all three programs carry the same
   version stamp (a build with uncommitted changes is refused; `ALLOW_DIRTY=1` makes a test package); the signature
   verifies; the privacy scan (no user name or home folder of the build machine in the app).
@@ -311,3 +314,169 @@ SMOKE=1 B3_GAME_DIR=<disc folder> SAVES=<card folder> tools/release/package_mac.
 `macos-latest` (Apple Silicon) runner, without game data, and keeps the `.dmg` as the `macos-dmg` artifact (the dSYMs
 as `macos-dsym`, the logs and the launcher's pages as `macos-package-logs`). It runs by hand (`gh workflow run
 release-mac.yml`, or the Actions tab) and on `v*` tags, not on every push.
+
+## 11. Intel Macs (x86-64): status (macintel1, 2026-11-18)
+
+The game builds from source and plays on an Intel Mac at full speed, with one Makefile fix (below).
+`tools/release/package_mac.sh` makes an Intel `.dmg` on an Intel Mac (below). No Intel download is published yet.
+
+**Base: 1.3.0** (rebased 2026-11-22; before that 1.2.0 on 2026-11-19). The table says which checks were run on which
+release. Rows without a release were measured on 1.1.0.
+
+**Test machine:** Core i7-9700K (AVX2, BMI1/2, FMA), Radeon RX 6600 XT (RDNA2, Metal 3), macOS 15.4, Apple clang 17
+(Xcode 16.3), Homebrew under `/usr/local`, SDL 3.4.18 from Homebrew.
+
+**Why it should mostly just work:**
+- Every x86 path is already built and tested on Linux and Windows: `-msse2`, `Ps2FloatEnv` on MXCSR, and the x86
+  `b3fp` paths.
+- The Mac-specific code is the same whatever the CPU: `dladdr` for the image base, `pthread_get_stackaddr_np`,
+  sysctl, `fstat` on shm, spawning programs.
+- The asm in `src/libs/rw` is PS2 VU0 stand-ins (`b3host/eeasm.h`), not host asm. `b3compat/glibc_compat.h` only
+  applies on Linux.
+- The renderer draws with Metal through SDL 3's GPU API, not Vulkan, so MoltenVK is not involved. Its texture formats
+  (RGBA8, R8, RGBA16F, D32F, with D24 / D16 checked through `SDL_GPUTextureSupportsFormat`) all exist on AMD GPUs
+  under Metal. The 16-bit packed formats, which are missing on non-Apple GPUs, are not used.
+
+**Setup:** section 1, plus `brew install make`. GNU make 4 is required (macOS's make 3.81 lacks `$(file ...)`). The
+build scripts print "not arm64 (Rosetta shell?)" on Intel; it is harmless.
+
+**A disc image works for the scripts too.** `build.sh`, `test.sh` and `b3view.sh` take a folder. Mount the `.iso`
+read-only (`hdiutil attach -readonly <iso>`, or double-click it) and give them the mounted volume
+(`/Volumes/SLUS_21050`). The game and the launcher read the `.iso` directly.
+
+**Checked so far:**
+
+| Check | Result |
+|---|---|
+| `test_ps2float` (Apple clang 17, x86-64, Makefile flags) | PASS, 249 checks |
+| `test_fenv` (MXCSR round-toward-zero + flush-to-zero) | PASS, 18 checks |
+| 63 of 4,961 `gen/native` units (every 80th file), `-fsyntax-only` with the Makefile's clang generated-unit flags | 0 errors |
+| full build (`BUILD_ONLY=1 LAUNCHER=1 tools/mac/native.sh`), first try | FAIL: `func_003BB7A0` (below); 2,870 units compiled before it stopped |
+| full build with the `-include functional` fix | PASS, 0 warnings: `native_play` (Mach-O x86_64), `libb3render.so`, `b3launcher`. `otool -L`: macOS's own libz / libSystem / libc++, plus Homebrew's SDL 3 for the renderer and the launcher |
+| `tools/mac/build.sh <mounted ISO>` | PASS: SLUS_210.50 matches the retail sha256; every test and both viewers built |
+| `tools/mac/test.sh`, exactness (13 tests, including the retail-code comparisons) | PASS, all of them. libm against the retail code: every function bit-exact with exact cost. Ps2FloatEnv (MXCSR): 0 of 5.2M operations differ from `b3fp::ref` |
+| `tools/mac/test.sh`, other (46 tests) | 45 PASS, 1 SKIP: `test_livelap` needs `data/scene/race2.b3scene`, a file from the repo's data folder that isn't in this checkout, so it is not a Mac problem |
+| `make test` (the full suite) | On 1.1.0 it stopped three times, each on a problem that shows on any Mac, not only Intel, and each now fixed (below): `test_mpeg2_decoder` NOT BUILT, `test_code_mods` 1 failure, `test_tune_browse` 1 failure |
+| **1.2.0:** full build (`BUILD_ONLY=1 LAUNCHER=1 tools/mac/native.sh`) | PASS, in 201 s on top of the 1.1.0 objects |
+| **1.2.0:** `make test` (the full suite, `-j8`) | PASS, exit 0: every C++ test (`test_livelap`'s scene checks skip as above), the compile-fail checks, `decomp2host` 147 cases, the icon check, the Blender add-on tests, `decl_check` 0 of 1,427. It took two more fixes (below): `test_native_platform` linked before the CHD unit was built (1.2.0, every platform), and `test_decomp2host.py`'s clang check failed because `g++` is Apple clang on macOS |
+| **1.3.0:** full build (`BUILD_ONLY=1 LAUNCHER=1 tools/mac/native.sh`) | PASS, in 1,459 s (most units recompiled) |
+| **1.3.0:** `make test` (the full suite, `-j8`) | PASS, exit 0, after two more fixes (below): `test_settings` read freed memory (1.3.0's `portable_mode_row` failed), and the one-click update learned the Intel package's name. `test_settings` 87 tests, 16,225 checks; `test_launcher_oneclick` 4 tests, 35 checks; `test_launcher_update` 12 tests, 153 checks |
+| **1.2.0:** `SMOKE=1 B3_GAME_DIR=<mounted ISO> SAVES=<a copy> tools/release/package_mac.sh` (clean tree) | PASS: `burnout3-native-1.2.0-<commit>-macos-x86_64.dmg`, 22 MB, in 7.5 min (the objects of the 1.1.0 package reused). Every program x86_64, macOS 15.0; `otool`: no Homebrew path; the privacy scan is clean; the libchdr / LZMA / miniz / zstd licences are in the app. The smoke test: the copy out of the image verifies (`codesign --strict`); the launcher's screenshot mode drew 52 pages, 59 PASS and no FAIL (the offscreen video driver did not start, "Could not initialize OpenGL / GLES library", so it ran again with hidden Cocoa windows, as the script does); the strict race check with the app's own `native_play`: PASS, US/C3_V1 driven to VBlank 23,400, fallback none, VU0 9,922,532 launches all generated, 158 VBlanks/s unpaced |
+| `b3view --offscreen AS/C1_V1` | PASS through both Vulkan and Metal, and the two pictures look the same (below) |
+| `STRICT=1 tools/native/race_check.sh build/mac/native_play` (offscreen; `B3_GAME_DIR` the mounted ISO, `SAVES` a copy of a profile made on this Mac) | PASS: race US/C3_V1 reached and driven to VBlank 23,400. Fallback: none (compiled out). VU0: 9,922,532 launches, all generated, 0 interpreted. 122 VBlanks/s unpaced |
+| `ALLOW_DIRTY=1 tools/release/package_mac.sh` on the Intel Mac | PASS: `burnout3-native-1.1.0-<commit>-dirty-macos-x86_64.dmg`, 21 MB, built in 27 min (6 jobs, low priority). Every program is x86_64 and needs macOS 15.0 (the bundled SDL 3.4.18's minimum). `otool`: no Homebrew path. Ad-hoc signature verifies; the privacy scan is clean |
+| the game in a window (`tools/mac/native.sh <mounted ISO>`), first play test, about 5 minutes | PASS, "works great": intro, menus and several races. Driver **metal** (SDL reported `metal, vulkan` and chose Metal for the window), MSAA 4x, present immediate. A steady 59.9 VBlanks/s (paced at 59.94 Hz), with short catch-up stretches above 60 after loads. 7,071 native functions, 0 fallback calls. A DualSense was player 1 (PS5 prompts). Sound: 48 kHz s16 stereo |
+
+**Found: generated units' macros against an older libc++.** `gen/native/units/func_003BB7A0.cpp` (dlmalloc code)
+defines function-like macros such as `#define first(b) ((b)->fd)` and `last(b)`. At its end it includes
+`b3host/native_rows.h`, which brings in `<functional>`. Xcode 16.3's libc++ (Apple clang 17) has `std::function` call
+`__f_.first()`, which the macro rewrites, so the unit does not compile (`function.h:152: expected unqualified-id`). The
+M1's newer Xcode has a libc++ that no longer calls `.first()` there, which is why the arm64 build never hit this. So
+it depends on the Xcode version, not on the CPU. Only headers included after such a macro are affected. A rebuild that
+carried on past errors (`MAKEFLAGS=-k`) compiled the other 4,960 units: this is the only one. Fix (Makefile, macOS
+only): the generated units are compiled with `-include functional`, so `<functional>` is read before any unit's
+macros. Linux and Windows builds are unchanged. A lasting fix would be in the generator (decomp2host): emit
+`native_rows.h` before the unit's macros, or `#undef` them first.
+
+**Found: `test_mpeg2_decoder` did not build under Apple clang.** `make test` (the full suite, not only the Mac
+subset `tools/mac/test.sh` runs) stopped at it: its recipe, and `mpeg2_check`'s, had no `-std`, and Apple clang's
+default standard has no `std::clamp` (`src/native/mpeg_dsp.h`, `mpeg2_decoder.cpp`). This is the same thing mac3 fixed
+for `test_clock`. Fixed the same way: both recipes now take `$(REQFLAGS)` (C++20). It applies to Apple Silicon too; the
+CI's macOS job only runs `mac-tests`, so it never built this test.
+
+**Found: `test_code_mods` failed on any Mac.** `mod_hash_covers_every_library` makes a code mod whose `[code]` names
+a library for `linux` and `windows` only. On macOS, `b3mod::host_system()` is `"macos"`, so the mod has no library for
+the host and the check `!a.mods()[0].library.empty()` fails. It is not in the Mac subset either. Fixed in the test:
+its mod also has `macos = bin/c.so` (the same file; the test only hashes it). 12 tests, 240 checks, 0 failures.
+
+**Found: a use-after-free in the tuning console's browser (every platform).** `test_tune_browse`
+`favourites_and_recent_persist` failed on the Mac: after CONFIRM on a favourite, the cursor sat on element 0 instead
+of the favourite's element 2. `Browser::enter()` (`include/b3tune/browse.h`) passes `jump()` a reference to a row's
+`Item`, and `jump()` calls `rows()`, which rebuilds `rows_` and frees the row it was given. AddressSanitizer:
+heap-use-after-free, read at `browse.h:887`, freed at `:885`. glibc's allocator left the old bytes in place, so Linux
+passed by luck; macOS's reused them. Fixed: `jump()` takes its `Item` by value. The test passes (11 tests, 24,946
+checks), and under `-fsanitize=address` too.
+
+**Found (1.2.0): `test_native_platform` could link before the CHD unit existed (every platform).** 1.2.0 adds CHD disc
+images (`chd_libchdr.o`). `test_native_platform`'s rule names `$(CHD_OBJ)` as a prerequisite, but that rule comes
+before `CHD_OBJ` is defined, and make expands a rule's prerequisites when it reads the line. So the prerequisite was
+empty, while the recipe (expanded later) still linked the file. A parallel `make test` in a build folder without the
+object linked the test first: `clang++: error: no such file or directory: '.../chd_libchdr.o'`. A build where another
+target compiled the unit first passes by luck. Fixed: after `CHD_OBJ`'s definition, the Makefile adds
+`$(BUILD)/test_native_platform: $(CHD_OBJ)`.
+
+**Found: `test_decomp2host.py` assumed `g++` is GCC.** Its "clang check-compile flags" case checks that a compiler
+reporting clang gets the clang flag, and that `g++` does not. It does that with a fake clang script and the real
+`g++`, which on macOS is Apple clang (`g++ --version`: "Apple clang version 17.0.0"), so the second half failed. Fixed
+in the test: a fake GCC script, as for clang, so the case no longer depends on the machine. 147 cases, 0 failures.
+
+**Found (1.3.0): `test_settings` read freed memory twice (every platform).** `portable_mode_row` (new in 1.3.0) failed
+on the Mac: `r = find(build_content(s, e))` keeps a pointer into the page that `build_content` returned, a temporary
+freed at the end of that line, and the next line reads `r->value` from it. `music_folder_and_playlist` (there since
+1.2.0) does the same in a range-for over `tab(build_content(...))->rows`. AddressSanitizer: heap-use-after-free in
+both. glibc's allocator left the bytes in place, so Linux passed; macOS's reused them for the portable row (the
+older one passed here by luck too). Fixed in the test: each page is kept in a variable first. 87 tests, 16,225
+checks, 0 failures, and clean under `-fsanitize=address,undefined`.
+
+**Found (1.3.0): the one-click update did not know the Intel package's name.** 1.2.1's one-click update
+(`src/b3launcher/oneclick.cpp`) reads the version from the package's file name, and only knew `-win64.zip`,
+`-linux-x86_64.tar.gz` and `-macos-arm64.dmg`. The Intel launcher picks `-macos-x86_64.dmg` (above), so it would have
+refused that package. It knows the Intel name now, with a case in `test_launcher_oneclick`. Nothing changes until a
+release has an Intel package.
+
+**The GPU driver depends on what is installed.** The renderer lets SDL 3 choose (`b3gfx_sdl.cpp`, no
+`SDL_PROP_GPU_DEVICE_CREATE_NAME_STRING` unless `--driver` is given). On a Mac with Homebrew's `vulkan-loader` and
+`molten-vk`, `b3view --offscreen` (SDL's offscreen video driver) got **Vulkan through MoltenVK** (1.4.2 here, through
+`/usr/local/etc/vulkan/icd.d`). `--driver metal` gave Metal, through the cocoa video driver with no window. Both
+pictures of `AS/C1_V1` look the same: 189,756 vertices, 3,908 draws, 180 textures, MSAA 4x. On a Mac without a Vulkan
+loader (the M1, the `.dmg`), only Metal exists. Watch for this: an old MoltenVK (1.2.x, an older Homebrew bottle) has
+known AMD bugs, among them `R8_UNORM` read as zero, which the renderer uses. The title bar and the log name the
+driver in use.
+
+**Which Intel Macs: what is known, and what is not.** Only one machine has been tested: an i7-9700K with a Radeon RX
+6600 XT (RDNA2, the GPU family of the Mac Pro 2019's W6x00X modules). Everything else below comes from the code and
+SDL 3's stated requirements, not from tests.
+
+- **macOS 15 or newer, for now.** A package bundles the SDL 3 it was built with, and Homebrew's Intel SDL 3 is built
+  for macOS 15, so the Intel app needs macOS 15 (Sequoia). That covers the Intel Macs Sequoia supports: MacBook Air 2020,
+  MacBook Pro 2018 and later, Mac mini 2018 and later, iMac 2019 and later, iMac Pro, and Mac Pro 2019. Older macOS
+  versions would need an SDL 3 built from source with a lower target (`SDL3_DIR=<prefix>`, `MACOS_MIN`).
+- **CPU: any Intel Mac.** The build asks for nothing beyond x86-64 with SSE2 (no `-march`; `-msse2` is the only CPU
+  flag), and the PS2 float model uses MXCSR, which every x86-64 CPU has. On the i7-9700K the offscreen race check ran at
+  122 VBlanks/s unpaced, about twice real time, with the renderer included. How a 2-core or 4-core laptop CPU does,
+  for example the MacBook Air 2020's, has not been measured.
+- **GPU: no discrete GPU is required by the code. What it needs is a Metal "Mac2 family" GPU.** That is SDL 3's own
+  rule for its Metal backend (`SDL_gpu.h`; the renderer does not set `METAL_ALLOW_MACFAMILY1`). The renderer uses no
+  compute pipelines, only 2D textures, and the formats listed above. It checks MSAA sample counts
+  (`SDL_GPUTextureSupportsSampleCount`) and D24 / D16 depth before using them. As far as Apple's tables go, the GPUs
+  of the Intel Macs that run macOS 15 should all be Mac2: the integrated Intel UHD 630, Iris Plus and Iris Plus G4 / G7,
+  and the AMD Radeon Pro (Polaris, Vega, Navi / RDNA1, RDNA2). So integrated graphics should run it. The open question
+  is speed: none has been measured. On a weak GPU, SETTINGS > DISPLAY > QUALITY PRESET Low or PS2 original,
+  ANTI-ALIASING off, and RENDER SCALE 75 % or 50 % are the settings to try. `KNOWN-ISSUES.txt` already suggests
+  FRAMES IN FLIGHT 2 for a low frame rate.
+- **MacBook Pros with two GPUs.** The renderer does not ask SDL for the low-power GPU
+  (`SDL_PROP_GPU_DEVICE_CREATE_PREFERLOWPOWER_BOOLEAN` is left at its default, false), so it should get the AMD GPU.
+  The app's `Info.plist` sets `NSSupportsAutomaticGraphicsSwitching`, so macOS can go back to the integrated GPU when
+  the game closes. Not tested on such a Mac: the launcher's log line `system gpu:` names the GPU in use.
+- **eGPUs** (an AMD card in a Thunderbolt 3 enclosure): not tested. macOS's "Prefer External GPU" (the app's Get Info)
+  is the usual way to send an app to one.
+- **Hackintoshes:** what matters is a GPU that macOS has a Metal driver for. Modern macOS supports AMD Polaris
+  (RX 400 / 500), Vega, RDNA1 (RX 5000) and RDNA2 (RX 6000, up to the 6900 XT). It has no drivers for RDNA3 and newer,
+  for NVIDIA cards after Kepler, or for Intel Arc, so those cannot run it. The tested machine is a Hackintosh-class
+  build (RX 6600 XT).
+- **Vulkan:** if a Mac has Homebrew's `vulkan-loader` and `molten-vk`, SDL can see a Vulkan driver too. With a window,
+  the game chose Metal (above). The app does not ship a Vulkan loader.
+
+**The Intel app (macintel1).** `tools/release/package_mac.sh` (section 10) now packages for the CPU of the Mac it
+runs on:
+- `burnout3-native-<version>-macos-x86_64.dmg` on an Intel Mac, `-macos-arm64.dmg` on Apple Silicon as before;
+- the `lipo` check, `LSArchitecturePriority`, `VERSION.txt`, the notices and the README's "what you need" line all
+  follow `uname -m`;
+- a Rosetta shell on Apple Silicon is refused (an Intel package is built on an Intel Mac);
+- `DRY_RUN=1 MAC_ARCH=x86_64` checks the Intel layout anywhere.
+
+The launcher's one-click update (`src/b3launcher/update.cpp` `package_asset()`) takes `-macos-x86_64.dmg` when it was
+built for an Intel Mac (`__APPLE__ && __x86_64__`), and `-macos-arm64.dmg` otherwise. Every other build is unchanged.
+`test_launcher_update` has a test for it (`mac_package_follows_the_cpu`). A release that offers both needs both
+`.dmg`s and their lines in `SHA256SUMS`. A single universal (arm64 + x86-64) app would also need a universal SDL 3,
+because Homebrew's is built for one CPU only.
