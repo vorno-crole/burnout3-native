@@ -17,7 +17,7 @@ anywhere; bug reports are files you send yourself.
 
 WHAT YOU NEED
 
-- A Mac with Apple Silicon (M1 or later), macOS @MACOS_MIN@ or newer. Intel Macs are not supported.
+- @MAC_HARDWARE@. macOS @MACOS_MIN@ or newer.
 - The disc's contents: every file and folder of the disc copied into a folder (SYSTEM.CNF, SLUS_210.50, DATA,
   TRACKS, PVEH, SOUND, ...), or a disc image (.iso, made from your own disc). The folder is the way tested most on a
   Mac; an .iso you already have can also be opened with a double-click and its files copied into a folder.
