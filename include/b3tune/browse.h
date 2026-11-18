@@ -871,8 +871,10 @@ public:
         clamp();
         return true;
     }
-    // to an element's place in its tab
-    bool jump(const Item& it) {
+    // to an element's place in its tab. By value (macintel1): enter() passes a row's item, and rows() below rebuilds
+    // rows_, so a reference would read freed memory (AddressSanitizer: heap-use-after-free; the cursor landed on
+    // element 0 under macOS's allocator)
+    bool jump(Item it) {
         const auto [node, row] = tree_.where(it.var, it.element);
         if (node < 0) return false;
         if (searching_) search_close();
