@@ -1,3 +1,36 @@
+# 🍎 Intel Mac fork: Burnout 3 native on Intel Macs only
+
+> [!IMPORTANT]
+> **This repository is a fork made only for Intel Macs (x86-64).**
+>
+> **Using Windows, Linux or an Apple Silicon Mac (M1 or later)? This isn't the repository you want. Go to upstream:
+> [u0rhs/burnout3-native](https://github.com/u0rhs/burnout3-native)** and its
+> [downloads](https://github.com/u0rhs/burnout3-native/releases). Upstream is the real project, is kept up to date, and
+> has the downloads for those platforms.
+
+This fork's `mac-intel` branch is upstream's release 1.2.0 plus a few small changes, so the port also builds, passes its
+tests and plays on **Intel Macs**. The changes have been offered to upstream; once upstream takes them, use upstream on
+an Intel Mac too.
+
+- **What the fork changes:** a build fix for Xcode 16's Apple clang, an Intel `.dmg` from the Mac packager (the
+  launcher's updater then picks the package that matches your Mac's CPU), and one bug fix in the tuning console that
+  affects every platform. Gameplay is unchanged.
+- **Which Intel Macs:** macOS 15 or newer, with a GPU in Metal's Mac2 family. A discrete GPU is not required: Intel UHD
+  630 and Iris Plus integrated graphics qualify, and so do AMD's Polaris, Vega, RDNA1 and RDNA2 cards.
+  [docs/mac.md §11](docs/mac.md#11-intel-macs-x86-64-status-macintel1-2026-11-18) has the details and lists what
+  hasn't been tested.
+- **Getting it:** there is no Intel download, so build it on your Mac from this branch. Run
+  `brew install sdl3 pkg-config make`, then `tools/mac/native.sh <your disc folder or mounted .iso>`. The build steps
+  are in [docs/mac.md](docs/mac.md), sections 1 and 11.
+- **Tested on:** one Mac, a Core i7-9700K with a Radeon RX 6600 XT, on macOS 15.4. On 1.2.0 it builds, the full test
+  suite (`make test`) passes, and the Intel `.dmg` passes its smoke test, including the strict race check against the
+  original game. A play session at a full 60 fps passed on 1.1.0.
+
+**Everything below this line is upstream's README.** It describes the project as a whole, including platforms this
+fork is not for.
+
+---
+
 <div align="center">
 
 <!-- Header image: change only this line (the app icon / logo) -->
