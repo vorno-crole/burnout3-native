@@ -33,7 +33,7 @@ make render          # the asset viewers and renderer tools (b3view, b3replay, .
 The first build compiles about 5,000 generated files: expect tens of minutes on a laptop. `make CXX="ccache g++"`
 makes later rebuilds much faster.
 
-**macOS** (Apple Silicon). Xcode command line tools, then `brew install sdl3 pkg-config make` (the Makefile needs GNU
+**macOS** (Apple Silicon, or an Intel Mac: [docs/mac.md](docs/mac.md) section 11). Xcode command line tools, then `brew install sdl3 pkg-config make` (the Makefile needs GNU
 make 4, installed as `gmake`). `tools/mac/native.sh <disc folder>` builds and starts the game;
 `tools/mac/build.sh` and `tools/mac/test.sh` build and run the Mac set of unit tests. See [docs/mac.md](docs/mac.md).
 
