@@ -512,8 +512,15 @@ const Release::Asset* find_asset(const Release& r, std::string_view name) {
     return nullptr;
 }
 
+// macintel1: an Intel Mac's launcher updates to the Intel package (tools/release/package_mac.sh names it by the CPU)
+#if defined(__APPLE__) && defined(__x86_64__)
+constexpr std::string_view kMacPackageTail = "-macos-x86_64.dmg";
+#else
+constexpr std::string_view kMacPackageTail = "-macos-arm64.dmg";
+#endif
+
 const Release::Asset* package_asset(const Release& r, Platform p) {
-    const std::string_view tail = p == Platform::kWindows ? "-win64.zip" : p == Platform::kMac ? "-macos-arm64.dmg" : "-linux-x86_64.tar.gz";
+    const std::string_view tail = p == Platform::kWindows ? "-win64.zip" : p == Platform::kMac ? kMacPackageTail : "-linux-x86_64.tar.gz";
     const Release::Asset* found = nullptr;
     for (const Release::Asset& a : r.assets) {
         if (a.name.size() <= tail.size() || a.name.compare(a.name.size() - tail.size(), tail.size(), tail) != 0) continue;

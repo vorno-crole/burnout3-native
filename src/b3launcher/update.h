@@ -81,7 +81,7 @@ struct Release {
     bool operator==(const Release&) const = default;
 };
 // 1.1: the package of this system in a release (Windows "...-win64.zip", Linux "...-linux-x86_64.tar.gz", macOS
-// "...-macos-arm64.dmg"), and its signed hash list ("SHA256SUMS" and "SHA256SUMS.sig"); nullptr when it has none
+// "...-macos-arm64.dmg", an Intel Mac's build "...-macos-x86_64.dmg"), and its signed hash list ("SHA256SUMS" and "SHA256SUMS.sig"); nullptr when it has none
 enum class Platform : std::uint8_t { kWindows, kLinux, kMac };
 Platform this_platform();
 const Release::Asset* package_asset(const Release& r, Platform p);

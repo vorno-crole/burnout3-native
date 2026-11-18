@@ -1,4 +1,4 @@
-Third-party software in this build (Burnout 3 native port, @VERSION@, macOS on Apple Silicon)
+Third-party software in this build (Burnout 3 native port, @VERSION@, macOS on @MAC_CPU@)
 
 The license texts are beside this file.
 

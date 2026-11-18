@@ -159,6 +159,7 @@ TEST(package_names_carry_the_version) {
     CHECK(v("burnout3-native-1.2.2-1a2b3c4d-win64.zip") == "1.2.2");
     CHECK(v("burnout3-native-1.2.2-1a2b3c4d-dirty-linux-x86_64.tar.gz") == "1.2.2");
     CHECK(v("burnout3-native-1.2.2-macos-arm64.dmg") == "1.2.2");
+    CHECK(v("burnout3-native-1.2.2-1a2b3c4d-macos-x86_64.dmg") == "1.2.2");   // macintel1: an Intel Mac's package
     CHECK(v("burnout3-native-1.3.0-rc.1-1a2b3c4d-win64.zip") == "1.3.0|rc|1");
     CHECK(v("burnout3-native-1.2.0-abc-win64.zip") == "1.2.0");
     CHECK(v("burnout3-native-1.2.2-test-1a2b3c4d-win64.zip") == "1.2.2");   // a test build counts as its base version
