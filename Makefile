@@ -950,6 +950,11 @@ NATIVE_OPT ?=
 NOBJ := $(BUILD)/gen_native_ps2$(if $(strip $(NATIVE_OPT)),$(subst $(eval) ,,$(strip $(NATIVE_OPT))))$(if $(filter bundle,$(NATIVE_FROM)),-bundle)
 # (mac4: the bundle's objects apart from the decomp generation's: the two units of a name may differ)
 NGENFLAGS = $(subst -I$(GEN)/include,-I$(NGEN)/include,$(GENFLAGS)) -DB3_BOUNCE_CANARY=1 $(NATIVE_OPT)   # boot2: native builds only (call.h)
+# macintel1: <functional> first on macOS. A unit's own function-like macros (func_003BB7A0's dlmalloc `first(b)`) come
+# before its trailing b3host/native_rows.h, and Xcode 16's libc++ <functional> calls `__f_.first()`, which they rewrite
+ifeq ($(UNAME_S),Darwin)
+NGENFLAGS += -include functional
+endif
 # + every function of a port track (decomp2host PORT_TRACKS: src/libs/rw RenderWare core, src/libs/rwa RW Audio), by
 # its `// 0xADDR` marker
 NATIVE_SELECT_ALL := $(NATIVE_GEN)/select.txt
@@ -1088,12 +1093,13 @@ mpeg_play: $(BUILD)/mpeg_play
 # mac5: the native MPEG-2 decoder against ffmpeg, picture by picture (tools/native/mpeg2_check.cpp)
 $(BUILD)/mpeg2_check: tools/native/mpeg2_check.cpp src/native/mpeg2_decoder.cpp src/native/mpeg2_decoder.h src/native/mpeg_dsp.h src/native/ipu_vlc.h
 	@mkdir -p $(BUILD)
-	$(CXX) $(CPPFLAGS) -Isrc/native $(CXXFLAGS) $< src/native/mpeg2_decoder.cpp -o $@
+	$(CXX) $(CPPFLAGS) -Isrc/native $(REQFLAGS) $(CXXFLAGS) $< src/native/mpeg2_decoder.cpp -o $@
 mpeg2_check: $(BUILD)/mpeg2_check
+# macintel1: with REQFLAGS (C++20), as mac3 did for test_clock: Apple clang's default standard has no std::clamp
 TESTS += $(BUILD)/test_mpeg2_decoder
 $(BUILD)/test_mpeg2_decoder: tests/test_mpeg2_decoder.cpp tests/test.h src/native/mpeg2_decoder.cpp src/native/mpeg2_decoder.h src/native/mpeg_dsp.h src/native/ipu_vlc.h
 	@mkdir -p $(BUILD)
-	$(CXX) $(CPPFLAGS) -Isrc/native $(CXXFLAGS) $(GAME_DEFS) $< src/native/mpeg2_decoder.cpp -o $@
+	$(CXX) $(CPPFLAGS) -Isrc/native $(REQFLAGS) $(CXXFLAGS) $(GAME_DEFS) $< src/native/mpeg2_decoder.cpp -o $@
 .PHONY: mpeg_play
 
 # mac5: LIBM_STAMP (top): the binaries with the retail ELF's path compiled in

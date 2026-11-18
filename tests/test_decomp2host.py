@@ -1152,7 +1152,11 @@ with _tf.TemporaryDirectory() as _td:
     _old = os.environ.get("DECOMP2HOST_CXX")
     os.environ["DECOMP2HOST_CXX"] = _fc
     _okc = d._host_cxx_is_clang()
-    os.environ["DECOMP2HOST_CXX"] = "g++"
+    # macintel1: a fake GCC too, as the clang above: on macOS `g++` is Apple clang ("Apple clang version 17...")
+    _fg = os.path.join(_td, "fakegcc")
+    open(_fg, "w").write("#!/bin/sh\necho 'g++ (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0'\n")
+    os.chmod(_fg, 0o755)
+    os.environ["DECOMP2HOST_CXX"] = _fg
     _okg = not d._host_cxx_is_clang()
     if _old is None: del os.environ["DECOMP2HOST_CXX"]
     else: os.environ["DECOMP2HOST_CXX"] = _old
