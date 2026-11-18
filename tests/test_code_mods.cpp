@@ -438,7 +438,8 @@ TEST(mod_hash_covers_every_library) {
     const fs::path root = fs::path(B3_TESTMODS_DIR) / "hashmods";
     fs::remove_all(root);
     fs::create_directories(root / "c" / "bin");
-    std::ofstream(root / "c" / "mod.ini") << "[mod]\nid = c\nversion = 1\napi = 2\n[code]\nlinux = bin/c.so\nwindows = bin/c.dll\n";
+    // macintel1: a macos line too (the same file: nothing is loaded here), so the mod has a library on a Mac as well
+    std::ofstream(root / "c" / "mod.ini") << "[mod]\nid = c\nversion = 1\napi = 2\n[code]\nlinux = bin/c.so\nwindows = bin/c.dll\nmacos = bin/c.so\n";
     std::ofstream(root / "c" / "bin" / "c.so", std::ios::binary) << "ELF one";
     auto build = [&] {
         const auto found = b3mod::discover(root);

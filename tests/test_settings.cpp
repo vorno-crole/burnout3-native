@@ -1218,7 +1218,10 @@ TEST(music_folder_and_playlist) {
         }
     }
     CHECK(pick && clear && mode);
-    for (const Row& r : tab(build_content(Settings{}, e))->rows) CHECK(r.id != kActionClearMusic);
+    // macintel1: the page in a variable (a range-for over tab(build_content(...))->rows read the rows after the temporary
+    // was freed: AddressSanitizer heap-use-after-free; glibc kept the bytes, macOS's allocator did not)
+    const Content plain = build_content(Settings{}, e);
+    for (const Row& r : tab(plain)->rows) CHECK(r.id != kActionClearMusic);
     // musicvol1: CUSTOM MUSIC VOLUME, 0..200 % in steps of 10 (default 100), right after PLAYLIST, in the ini
     CHECK(Settings{}.custom_music_volume == 100);
     Settings v{};
@@ -3455,11 +3458,16 @@ TEST(portable_mode_row) {
             for (const Row& row : t.rows) on_game_tab = on_game_tab || row.id == kRowPortable;
     CHECK(on_game_tab);
     e.portable.request = 1;   // asked of the launcher: shown on
-    r = find(build_content(s, e));
+    // macintel1: each page in a variable (find(build_content(...)) left r pointing into the freed temporary, so the
+    // check read freed memory: it failed on macOS, whose allocator reuses it at once; AddressSanitizer:
+    // heap-use-after-free)
+    const Content asked = build_content(s, e);
+    r = find(asked);
     CHECK(r && r->value == 1 && r->description.find("at its next start") != std::string::npos);
     e.portable.on = true;
     e.portable.request = 0;
-    r = find(build_content(s, e));
+    const Content on = build_content(s, e);
+    r = find(on);
     CHECK(r && r->value == 0);
     e.launcher = true;   // the launcher's settings: its LAUNCHER tab has the row instead
     CHECK(find(build_content(s, e)) == nullptr);

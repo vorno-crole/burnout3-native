@@ -45,6 +45,9 @@ inline std::string demangled(const char* name) {
     char* d = abi::__cxa_demangle(name, nullptr, nullptr, &status);
     std::string s = status == 0 && d ? d : name;
     std::free(d);
+#ifdef _LIBCPP_VERSION   // macintel1: libc++'s ABI namespace ("std::__1::system_error"), named as libstdc++ does
+    for (std::size_t at; (at = s.find("std::__1::")) != std::string::npos;) s.erase(at + 5, 5);
+#endif
     return s;
 }
 
