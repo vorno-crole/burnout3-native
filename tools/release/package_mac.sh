@@ -1,6 +1,7 @@
 #!/bin/bash
-# package_mac.sh -- the Mac test build for testers, as one disk image (macOS on Apple Silicon):
-#   build/release/burnout3-native-<version>-macos-arm64.dmg ($REL, default build/release): a compressed (UDZO) image
+# package_mac.sh -- the Mac test build for testers, as one disk image (macOS on Apple Silicon, or on an Intel Mac:
+# macintel1, the CPU of the Mac it runs on):
+#   build/release/burnout3-native-<version>-macos-<arm64|x86_64>.dmg ($REL, default build/release): a compressed (UDZO) image
 #   whose window holds the standard drag-to-install pair:
 #     Burnout 3 Native.app
 #       Contents/Info.plist  Contents/PkgInfo
@@ -12,7 +13,7 @@
 #                            README-TESTERS.txt  KNOWN-ISSUES.txt  VERSION.txt
 #                            LICENSES/ (THIRD-PARTY-NOTICES.txt and the license texts: SDL3, stb_truetype, dr_libs,
 #                                       minimp3, stb_vorbis, Lua, libchdr with LZMA SDK / miniz / zstd)
-#       Contents/_CodeSignature/ (ad-hoc: codesign -s -, so Apple Silicon runs it; not notarized)
+#       Contents/_CodeSignature/ (ad-hoc: codesign -s -, so Apple Silicon runs it (Intel does not need it); not notarized)
 #     Applications -> /Applications
 #   No developer tools, no game data, no saves. The user data folder is ~/Library/Application Support/b3port/native.
 #
@@ -56,8 +57,17 @@ run() { if [ "$DRY" = 1 ]; then printf '  [dry run] %s\n' "$*"; else "$@"; fi; }
 runq() { if [ "$DRY" = 1 ]; then printf '  [dry run] %s\n' "$*"; else "$@" > /dev/null; fi; }   # ... its output not shown
 first() { sed -n 1p; }   # the first line (not head -1: the writer's SIGPIPE would fail a pipefail pipeline)
 case "$REL" in /tmp/*) die "REL under /tmp (RAM): use the build folder";; esac
+# macintel1: the package is for the CPU of the Mac it is built on (arm64: Apple Silicon; x86_64: an Intel Mac); the
+# build, the bundled SDL3 and the checks below all follow it. DRY_RUN=1 takes MAC_ARCH (default arm64).
+if [ "$DRY" = 1 ]; then ARCH=${MAC_ARCH:-arm64}; else ARCH=$(uname -m); fi
+case "$ARCH" in arm64) CPU_NAME="Apple Silicon"; HARDWARE="A Mac with Apple Silicon (M1 or later). This download is not for Intel Macs";;
+                x86_64) CPU_NAME="Intel"; HARDWARE="An Intel Mac (x86-64). This download is not for Apple Silicon Macs";;
+                *) die "unknown CPU $ARCH (arm64 or x86_64)";; esac
 if [ "$DRY" != 1 ]; then
-    [ "$(uname -s)-$(uname -m)" = Darwin-arm64 ] || die "macOS on Apple Silicon only (arm64; a Rosetta shell? arch -arm64 bash $0). DRY_RUN=1 checks the layout anywhere"
+    [ "$(uname -s)" = Darwin ] || die "macOS only. DRY_RUN=1 checks the layout anywhere"
+    if [ "$ARCH" = x86_64 ] && [ "$(sysctl -n sysctl.proc_translated 2>/dev/null || echo 0)" = 1 ]; then
+        die "a Rosetta shell on Apple Silicon: run arch -arm64 bash $0 (an Intel package is built on an Intel Mac)"
+    fi
     for t in clang++ otool install_name_tool lipo dsymutil codesign strip hdiutil sips iconutil ditto plutil python3; do
         command -v "$t" > /dev/null 2>&1 || die "no $t (the Xcode command line tools: xcode-select --install)"
     done
@@ -153,7 +163,7 @@ HEAD=$(git -C "$PORT" rev-parse --short=8 HEAD 2>/dev/null || true)
 case "$VER" in *"+$HEAD"*) ;; *) echo "package_mac: note: $VER is not this checkout's commit ($HEAD)" >&2;; esac
 SHORTV=$(echo "$BASE" | sed -E 's/^([0-9]+(\.[0-9]+)*).*/\1/')   # CFBundleShortVersionString: numbers only (0.1.0)
 case "$SHORTV" in [0-9]*) ;; *) SHORTV=0.0.0;; esac
-NAME=burnout3-native-$(echo "$VER" | tr -c 'A-Za-z0-9._\n-' '-')-macos-arm64
+NAME=burnout3-native-$(echo "$VER" | tr -c 'A-Za-z0-9._\n-' '-')-macos-$ARCH
 say "$NAME (macOS $MACOS_MIN or newer, SDL ${SDLV:-3})"
 
 # ---- stage: the image's folder, the app in it ----
@@ -204,17 +214,17 @@ $1
 add_rpath @executable_path "$M/b3launcher"
 add_rpath @loader_path "$M/libb3render.so"
 
-# ---- the Mach-O checks: arm64, what each loads (only macOS's own libraries and the app's), its minimum macOS ----
+# ---- the Mach-O checks: the CPU ($ARCH), what each loads (only macOS's own libraries and the app's), its minimum macOS ----
 MIN=$MACOS_MIN
 if [ "$DRY" = 1 ]; then
     say "[dry run] the checks: otool -L / -l of each program (only /usr/lib, /System/Library, @rpath/$SDLNAME,"
-    say "[dry run]   @rpath/libb3render.so; rpaths only @executable_path / @loader_path; arm64; LC_BUILD_VERSION minos)"
+    say "[dry run]   @rpath/libb3render.so; rpaths only @executable_path / @loader_path; $ARCH; LC_BUILD_VERSION minos)"
 else
     bad=""
     say "$VER -- what each program loads:"
     for f in b3launcher native_play libb3render.so b3modtool "$SDLNAME"; do
         a=$(lipo -info "$M/$f" 2>&1 || true)
-        case " $a " in *" arm64 "*|*" arm64"$'\n'*) ;; *) bad="$bad; $f is not arm64 ($a)";; esac
+        case " $a " in *" $ARCH "*|*" $ARCH"$'\n'*) ;; *) bad="$bad; $f is not $ARCH ($a)";; esac
         own=$(otool -D "$M/$f" | sed -n 2p)
         deps=$(otool -L "$M/$f" | awk 'NR > 1 {print $1}' | { if [ -n "$own" ]; then grep -vxF "$own"; else cat; fi; } || true)
         n=$(printf '%s\n' "$deps" | awk -v sdl="@rpath/$SDLNAME" 'NF && $0 !~ /^\/usr\/lib\// && $0 !~ /^\/System\/Library\// && $0 != sdl && $0 != "@rpath/libb3render.so"' | tr '\n' ' ')
@@ -248,7 +258,7 @@ cat > "$C/Info.plist" <<EOF
 	<key>CFBundleVersion</key>	<string>$SHORTV</string>
 	<key>B3PortVersion</key>	<string>$VER</string>
 	<key>LSMinimumSystemVersion</key>	<string>$MIN</string>
-	<key>LSArchitecturePriority</key>	<array><string>arm64</string></array>
+	<key>LSArchitecturePriority</key>	<array><string>$ARCH</string></array>
 	<key>LSApplicationCategoryType</key>	<string>public.app-category.racing-games</string>
 	<key>NSPrincipalClass</key>	<string>NSApplication</string>
 	<key>NSHighResolutionCapable</key>	<true/>
@@ -278,7 +288,8 @@ python3 -I "$PORT/tools/blender/make_addon_zip.py" "$R/b3_car_tools.zip" > /dev/
 chmod 644 "$R/b3_car_tools.zip"
 
 # ---- the texts: @VERSION@ / @SDL_VERSION@ / @MACOS_MIN@ filled in ----
-text() { sed -e "s/@VERSION@/$VER/g" -e "s/@SDL_VERSION@/${SDLV:-3}/g" -e "s/@MACOS_MIN@/$MIN/g" "$1" > "$2"; }
+text() { sed -e "s/@VERSION@/$VER/g" -e "s/@SDL_VERSION@/${SDLV:-3}/g" -e "s/@MACOS_MIN@/$MIN/g" -e "s/@MAC_CPU@/$CPU_NAME/g" \
+              -e "s/@MAC_HARDWARE@/$HARDWARE/g" "$1" > "$2"; }
 text "$HERE/README-TESTERS-mac.txt" "$R/README-TESTERS.txt"
 text "$HERE/KNOWN-ISSUES.txt" "$R/KNOWN-ISSUES.txt.in"
 PLAT='- Mac and Linux builds (Windows only for now).'
@@ -296,7 +307,7 @@ awk -v plat="$PLAT" '
     $0 != plat {print}' "$R/KNOWN-ISSUES.txt.in" > "$R/KNOWN-ISSUES.txt"
 rm -f "$R/KNOWN-ISSUES.txt.in"
 text "$HERE/THIRD-PARTY-NOTICES-mac.txt" "$R/LICENSES/THIRD-PARTY-NOTICES.txt"
-printf 'Burnout 3 native port %s\ntest build for macOS (Apple Silicon, macOS %s or newer), packaged %s\n' "$VER" "$MIN" "$(date -u +%Y-%m-%d)" > "$R/VERSION.txt"
+printf 'Burnout 3 native port %s\ntest build for macOS (%s, macOS %s or newer), packaged %s\n' "$VER" "$CPU_NAME" "$MIN" "$(date -u +%Y-%m-%d)" > "$R/VERSION.txt"
 lic() { [ -f "$1" ] || die "no license file $1"; install -m 644 "$1" "$R/LICENSES/$2"; }
 SDLLIC=""
 for c in "$SDL3_DIR/LICENSE.txt" "$SDL3_DIR/share/licenses/SDL3/LICENSE.txt" "$SDL3_DIR/share/doc/SDL3/LICENSE.txt"; do

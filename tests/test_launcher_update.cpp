@@ -268,4 +268,24 @@ TEST(file_urls_are_encoded) {
     CHECK(b3port::file_url("/home/m\xC3\xA9/x") == "file:///home/m\xC3\xA9/x");   // UTF-8 kept as it is
 }
 
+TEST(mac_package_follows_the_cpu) {
+    // macintel1: with both Mac packages in a release, an Intel Mac's launcher takes the x86_64 one, every other build
+    // the arm64 one
+    const char* json = R"({"tag_name": "v1.2.0", "html_url": "https://github.com/u0rhs/burnout3-native/releases/tag/v1.2.0",
+        "assets": [
+          {"name": "burnout3-native-1.2.0-abc-macos-arm64.dmg", "size": 700,
+           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-macos-arm64.dmg"},
+          {"name": "burnout3-native-1.2.0-abc-macos-x86_64.dmg", "size": 800,
+           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-macos-x86_64.dmg"}
+        ]})";
+    Release r;
+    CHECK(parse_release(json, r));
+    const Release::Asset* m = package_asset(r, Platform::kMac);
+#if defined(__APPLE__) && defined(__x86_64__)
+    CHECK(m && m->name == "burnout3-native-1.2.0-abc-macos-x86_64.dmg");
+#else
+    CHECK(m && m->name == "burnout3-native-1.2.0-abc-macos-arm64.dmg");
+#endif
+}
+
 TEST_MAIN("test_launcher_update: the launcher's update check (src/b3launcher/update.h), canned answers only")

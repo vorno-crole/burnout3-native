@@ -56,7 +56,8 @@ std::optional<update::Version> package_version(std::string_view name) {
     if (name.substr(0, head.size()) != head) return std::nullopt;
     name.remove_prefix(head.size());
     bool tail = false;
-    for (const std::string_view t : {"-win64.zip", "-linux-x86_64.tar.gz", "-macos-arm64.dmg"})
+    // macintel1: an Intel Mac's package too (tools/release/package_mac.sh names it by the CPU; update.cpp picks it)
+    for (const std::string_view t : {"-win64.zip", "-linux-x86_64.tar.gz", "-macos-arm64.dmg", "-macos-x86_64.dmg"})
         if (ends_with(name, t)) {
             name.remove_suffix(t.size());
             tail = true;
