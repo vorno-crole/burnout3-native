@@ -19,9 +19,11 @@ an Intel Mac too.
   630 and Iris Plus integrated graphics qualify, and so do AMD's Polaris, Vega, RDNA1 and RDNA2 cards.
   [docs/mac.md §11](docs/mac.md#11-intel-macs-x86-64-status-macintel1-2026-11-18) has the details and lists what
   hasn't been tested.
-- **Getting it:** there is no Intel download, so build it on your Mac from this branch. Run
-  `brew install sdl3 pkg-config make`, then `tools/mac/native.sh <your disc folder or mounted .iso>`. The build steps
-  are in [docs/mac.md](docs/mac.md), sections 1 and 11.
+- **Getting it:** download the Intel `.dmg` from this fork's
+  [Releases](https://github.com/vorno-crole/burnout3-native/releases) (the release notes cover installing it), or build
+  it on your Mac from this branch: `brew install sdl3 pkg-config make`, then
+  `tools/mac/native.sh <your disc folder or mounted .iso>`. The build steps are in [docs/mac.md](docs/mac.md),
+  sections 1 and 11.
 - **Tested on:** one Mac, a Core i7-9700K with a Radeon RX 6600 XT, on macOS 15.4. On 1.2.0 it builds, the full test
   suite (`make test`) passes, and the Intel `.dmg` passes its smoke test, including the strict race check against the
   original game. A play session at a full 60 fps passed on 1.1.0.
