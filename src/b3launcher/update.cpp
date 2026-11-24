@@ -478,12 +478,12 @@ bool parse_release(std::string_view json, Release& out, std::string* why) {
     if (const Json* p = j->get("prerelease"); p && p->kind == Json::Kind::kBool) r.prerelease = p->b;
     if (const std::string* s = j->str("body")) r.notes = first_lines(std::string_view(*s).substr(0, 64 * 1024), 3);
     if (const Json* as = j->get("assets"); as && as->kind == Json::Kind::kArray) {   // 1.1 one-click updates
-        constexpr std::string_view kDownloads = "https://github.com/u0rhs/burnout3-native/releases/download/";
+        const std::string_view downloads = kDownloads;   // macintel1: the repository update.h checks
         for (const Json& a : as->items) {
             if (a.kind != Json::Kind::kObject || r.assets.size() >= 64) continue;
             const std::string* name = a.str("name");
             const std::string* url = a.str("browser_download_url");
-            if (!name || !url || name->empty() || name->size() > 200 || url->compare(0, kDownloads.size(), kDownloads) != 0) continue;
+            if (!name || !url || name->empty() || name->size() > 200 || url->compare(0, downloads.size(), downloads) != 0) continue;
             if (name->find_first_of("/\\") != std::string::npos || *name != clean(*name, 200)) continue;
             Release::Asset x;
             x.name = *name;

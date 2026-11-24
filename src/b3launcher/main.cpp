@@ -9685,7 +9685,7 @@ int update_checks(App& a, const fs::path& dir) {
     next.patch = 0;
     next.pre.clear();
     auto release_json = [](const std::string& tag, const std::string& name) {
-        return "{\"html_url\": \"https://github.com/u0rhs/burnout3-native/releases/tag/" + tag + "\", \"tag_name\": \"" + tag +
+        return "{\"html_url\": \"" + std::string(update::kReleasesPage) + "/tag/" + tag + "\", \"tag_name\": \"" + tag +   // macintel1: the repository checked
                "\", \"name\": \"" + name + "\", \"draft\": false, \"prerelease\": false, \"published_at\": \"2026-12-01T18:00:00Z\", "
                "\"assets\": [], \"body\": \"## What's new\\r\\n\\r\\n- **Split screen** for two players\\r\\n- Faster loading\\r\\n\"}";
     };
@@ -9740,7 +9740,7 @@ int update_checks(App& a, const fs::path& dir) {
         std::printf("b3launcher: update check \"%s\" %s (%s)\n", what, ok ? "PASS" : "FAIL", detail.c_str());
         if (!ok) ++fails;
     };
-    const std::string url_part = "github.com/u0rhs/burnout3-native/releases/tag/";
+    const std::string url_part = std::string(update::kReleasesPage).substr(8) + "/tag/";   // macintel1: "github.com/<repo>/releases/tag/"
 
     {   // a newer release: the banner, its Download, launcher.ini
         const std::string tag = tag_of(next);

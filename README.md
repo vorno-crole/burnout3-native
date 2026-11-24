@@ -8,7 +8,7 @@
 > [downloads](https://github.com/u0rhs/burnout3-native/releases). Upstream is the real project, is kept up to date, and
 > has the downloads for those platforms.
 
-This fork's `mac-intel` branch is upstream's release 1.3.0 plus a few small changes, so the port also builds, passes its
+This fork's `mac-intel` branch is upstream's release 1.4.0 plus a few small changes, so the port also builds, passes its
 tests and plays on **Intel Macs**. The changes have been offered to upstream; once upstream takes them, use upstream on
 an Intel Mac too.
 
@@ -25,9 +25,14 @@ an Intel Mac too.
   it on your Mac from this branch: `brew install sdl3 pkg-config make`, then
   `tools/mac/native.sh <your disc folder or mounted .iso>`. The build steps are in [docs/mac.md](docs/mac.md),
   sections 1 and 11.
-- **Tested on:** one Mac, a Core i7-9700K with a Radeon RX 6600 XT, on macOS 15.4. On 1.3.0 it builds and the full
-  test suite (`make test`) passes. The 1.2.0 Intel `.dmg` passed its smoke test, including the strict race check
-  against the original game. A play session at a full 60 fps passed on 1.1.0.
+- **Updates:** from 1.4.0-intel.1 on, the launcher's update check looks at this fork's releases and tells you when a
+  new Intel build is out; its Download opens the release's page. One-click install is off in the Intel build, because
+  the fork's releases aren't signed with upstream's key. 1.3.0-intel.1 and earlier check upstream instead, so get one
+  newer Intel release from this page by hand. Each fork release's version and tag end in `-intel.N`.
+- **Tested on:** one Mac, a Core i7-9700K with a Radeon RX 6600 XT, on macOS 15.4. On 1.4.0 it builds and the full
+  test suite (`make test`) passes. Each Intel `.dmg` on the Releases page passed its smoke test, including the strict
+  race check against the original game (its release notes list the checks). A play session at a full 60 fps passed
+  on 1.1.0.
 
 **Everything below this line is upstream's README.** It describes the project as a whole, including platforms this
 fork is not for.

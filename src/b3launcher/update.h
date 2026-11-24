@@ -23,8 +23,18 @@
 
 namespace b3launcher::update {
 
-inline constexpr const char* kLatestUrl = "https://api.github.com/repos/u0rhs/burnout3-native/releases/latest";
-inline constexpr const char* kReleasesPage = "https://github.com/u0rhs/burnout3-native/releases";
+// macintel1 (the Intel Mac fork only): an Intel Mac's build checks the fork's releases, which carry the Intel package
+// (upstream's have none). The fork's tags and VERSION carry the fork's release ("1.3.0-intel.2"), so a fork-only release
+// of the same upstream version is newer than the last one.
+#if defined(__APPLE__) && defined(__x86_64__)
+#define B3_UPDATE_REPO "vorno-crole/burnout3-native"
+#else
+#define B3_UPDATE_REPO "u0rhs/burnout3-native"
+#endif
+inline constexpr const char* kLatestUrl = "https://api.github.com/repos/" B3_UPDATE_REPO "/releases/latest";
+inline constexpr const char* kReleasesPage = "https://github.com/" B3_UPDATE_REPO "/releases";
+// where a release's files are downloaded from: parse_release keeps only these
+inline constexpr const char* kDownloads = "https://github.com/" B3_UPDATE_REPO "/releases/download/";
 inline constexpr std::int64_t kInterval = 5 * 60;   // 1.2.1: each launcher start checks, unless the last check was under 5 minutes ago
 // "b3port-launcher/0.1.0-test+1a2b3c4d": the request's User-Agent (GitHub's API refuses a request without one)
 std::string user_agent(std::string_view version);

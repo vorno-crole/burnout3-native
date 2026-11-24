@@ -11,6 +11,11 @@
 using namespace b3launcher::update;
 
 namespace {
+// macintel1: a release's downloads from the repository the build checks (update.h kDownloads: the fork's on an Intel Mac)
+std::string downloads(std::string json) {
+    for (std::size_t at; (at = json.find("@DL@")) != std::string::npos;) json.replace(at, 4, kDownloads);
+    return json;
+}
 
 // A trimmed sample of GitHub's answer (the fields the launcher reads and some it ignores)
 const char* kSample = R"({
@@ -235,15 +240,15 @@ TEST(release_assets_and_sums) {
     const char* json = R"({"tag_name": "v1.2.0", "html_url": "https://github.com/u0rhs/burnout3-native/releases/tag/v1.2.0",
         "assets": [
           {"name": "burnout3-native-1.2.0-abc-win64.zip", "size": 1000,
-           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-win64.zip"},
+           "browser_download_url": "@DL@v1.2.0/burnout3-native-1.2.0-abc-win64.zip"},
           {"name": "burnout3-native-1.2.0-abc-linux-x86_64.tar.gz", "size": 900,
-           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-linux-x86_64.tar.gz"},
-          {"name": "SHA256SUMS", "size": 10, "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/SHA256SUMS"},
+           "browser_download_url": "@DL@v1.2.0/burnout3-native-1.2.0-abc-linux-x86_64.tar.gz"},
+          {"name": "SHA256SUMS", "size": 10, "browser_download_url": "@DL@v1.2.0/SHA256SUMS"},
           {"name": "evil-win64.zip", "browser_download_url": "https://example.com/evil-win64.zip"},
-          {"name": "../x", "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/x"}
+          {"name": "../x", "browser_download_url": "@DL@v1.2.0/x"}
         ]})";
     Release r;
-    CHECK(parse_release(json, r));
+    CHECK(parse_release(downloads(json), r));
     CHECK(r.assets.size() == 3);   // another site's download and a path-like name are dropped
     const Release::Asset* w = package_asset(r, Platform::kWindows);
     CHECK(w && w->name == "burnout3-native-1.2.0-abc-win64.zip" && w->size == 1000);
@@ -274,18 +279,37 @@ TEST(mac_package_follows_the_cpu) {
     const char* json = R"({"tag_name": "v1.2.0", "html_url": "https://github.com/u0rhs/burnout3-native/releases/tag/v1.2.0",
         "assets": [
           {"name": "burnout3-native-1.2.0-abc-macos-arm64.dmg", "size": 700,
-           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-macos-arm64.dmg"},
+           "browser_download_url": "@DL@v1.2.0/burnout3-native-1.2.0-abc-macos-arm64.dmg"},
           {"name": "burnout3-native-1.2.0-abc-macos-x86_64.dmg", "size": 800,
-           "browser_download_url": "https://github.com/u0rhs/burnout3-native/releases/download/v1.2.0/burnout3-native-1.2.0-abc-macos-x86_64.dmg"}
+           "browser_download_url": "@DL@v1.2.0/burnout3-native-1.2.0-abc-macos-x86_64.dmg"}
         ]})";
     Release r;
-    CHECK(parse_release(json, r));
+    CHECK(parse_release(downloads(json), r));
     const Release::Asset* m = package_asset(r, Platform::kMac);
 #if defined(__APPLE__) && defined(__x86_64__)
     CHECK(m && m->name == "burnout3-native-1.2.0-abc-macos-x86_64.dmg");
 #else
     CHECK(m && m->name == "burnout3-native-1.2.0-abc-macos-arm64.dmg");
 #endif
+}
+
+TEST(intel_fork_releases) {
+    // macintel1 (the Intel Mac fork only): an Intel Mac's build checks the fork, the others upstream
+#if defined(__APPLE__) && defined(__x86_64__)
+    CHECK(std::string(kLatestUrl) == "https://api.github.com/repos/vorno-crole/burnout3-native/releases/latest");
+    CHECK(std::string(kReleasesPage) == "https://github.com/vorno-crole/burnout3-native/releases");
+#else
+    CHECK(std::string(kLatestUrl) == "https://api.github.com/repos/u0rhs/burnout3-native/releases/latest");
+#endif
+    // the fork's releases carry their number in VERSION and the tag: a later fork release of the same upstream version
+    // is newer, an older one or the build's own is not, and the next upstream version's first is newer again
+    CHECK(is_newer("v1.3.0-intel.2", "1.3.0-intel.1+b098c8e2"));
+    CHECK(is_newer("v1.3.0-intel.10", "1.3.0-intel.9+b098c8e2"));
+    CHECK(!is_newer("v1.3.0-intel.2", "1.3.0-intel.2+1a2b3c4d"));
+    CHECK(!is_newer("v1.3.0-intel.1", "1.3.0-intel.2+1a2b3c4d"));
+    CHECK(is_newer("v1.4.0-intel.1", "1.3.0-intel.2+1a2b3c4d"));
+    // why VERSION carries it: against a plain "1.3.0" build a fork tag is a pre-release, so older
+    CHECK(!is_newer("v1.3.0-intel.2", "1.3.0+b098c8e2"));
 }
 
 TEST_MAIN("test_launcher_update: the launcher's update check (src/b3launcher/update.h), canned answers only")
